@@ -1,19 +1,25 @@
-require("dotenv").config();
-const axios = require("axios");
-const express = require("express");
+import express from "express";
+import axios from 'axios';
+import dotenv from "dotenv";
+import { WebClient }  from "@slack/web-api"
+import { createEventAdapter } from "@slack/events-api";
+
+// initialize configuration
+dotenv.config();
+const port = parseInt(process.env.PORT, 10);
+
 const app = express();
-const { createEventAdapter } = require("@slack/events-api");
-const { WebClient } = require("@slack/web-api");
+app.use( express.json() );
+
 const slackEvents = createEventAdapter(process.env.SIGNING_KEY);
-const port = process.env.PORT || 8090;
 const token = process.env.BOT_USER_ACCESS_TOKEN;
 const web = new WebClient(token);
 
-app.get("/", (req, res) => res.send("Hello World!"));
+app.get("/", ((req:any, res:any) => res.send("Hello World!")));
 app.use("/events", slackEvents.expressMiddleware());
 
 // Attach listeners to events by Slack Event "type". See: https://api.slack.com/events/message.im
-slackEvents.on("message", event => {
+slackEvents.on("message", (event:any) => {
 	console.log(
 		`Received a message event: user ${event.user} in channel ${event.channel} says ${event.text}`
 	);
@@ -36,7 +42,6 @@ slackEvents.on("message", event => {
 slackEvents.on("error", console.error);
 
 // Start a basic HTTP server
-slackEvents.start(port).then(() => {
-	// Listening on path '/slack/events' by default
+slackEvents.start((port)).then(()=> {
 	console.log(`server listening on port ${port}`);
 });
