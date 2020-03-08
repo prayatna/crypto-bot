@@ -1,29 +1,31 @@
-import express from "express";
-import axios from 'axios';
+import express, { response } from "express";
 import dotenv from "dotenv";
-import { WebClient }  from "@slack/web-api"
+import { WebClient } from "@slack/web-api";
 import { createEventAdapter } from "@slack/events-api";
+import CoinBaseApiService from "./services/coinbase.service";
+import CryptoBotService from "./services/crypto-bot.service";
 
 // initialize configuration
 dotenv.config();
 const port = parseInt(process.env.PORT, 10);
 
 const app = express();
-app.use( express.json() );
+app.use(express.json());
 
 const slackEvents = createEventAdapter(process.env.SIGNING_KEY);
 const token = process.env.BOT_USER_ACCESS_TOKEN;
 const web = new WebClient(token);
 
-app.get("/", ((req:any, res:any) => res.send("Hello World!")));
+app.get("/", (req: any, res: any) => res.send("Hello World!"));
 app.use("/events", slackEvents.expressMiddleware());
 
 // Attach listeners to events by Slack Event "type". See: https://api.slack.com/events/message.im
-slackEvents.on("message", (event:any) => {
+slackEvents.on("message", (event: any) => {
 	console.log(
 		`Received a message event: user ${event.user} in channel ${event.channel} says ${event.text}`
 	);
 	console.log(event);
+
 	(async () => {
 		if (!event.bot_id) {
 			// See: https://api.slack.com/methods/chat.postMessage
@@ -34,6 +36,19 @@ slackEvents.on("message", (event:any) => {
 
 			// `res` contains information about the posted message
 			console.log("Message sent: ", res.ts);
+
+			var coinbaseService = new CoinBaseApiService();
+
+			const cryptoService = new CryptoBotService(coinbaseService);//TODO: dependency injection
+
+			const latestPrice = await cryptoService.GetLatestCryptoCurrenciesPrice(
+				"AUD"
+			);
+
+			const latestPriceMessage = await web.chat.postMessage({
+				channel: event.channel,
+				text: latestPrice
+			});
 		}
 	})();
 });
@@ -42,6 +57,6 @@ slackEvents.on("message", (event:any) => {
 slackEvents.on("error", console.error);
 
 // Start a basic HTTP server
-slackEvents.start((port)).then(()=> {
+slackEvents.start(port).then(() => {
 	console.log(`server listening on port ${port}`);
 });
